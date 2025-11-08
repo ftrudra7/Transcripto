@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transcripto | AI Language Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet"/>
+    <script src="https://unpkg.com/scrollreveal"></script>
+    <style>
+        :root {
+            --primary-color: #6366F1; /* Indigo */
+            --secondary-color: #4F46E5; /* Deep Indigo */
+            --background-color: #111827; /* Dark Navy/Charcoal */
+            --surface-color: rgba(31, 41, 55, 0.5); /* Semi-transparent dark surface */
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #9CA3AF; /* Light Gray */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+        
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .main-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .section__container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 6rem 2rem;
+        }
+
+        .section__header {
+            font-size: 3rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #818CF8, #3730A3);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section__subheader {
+            max-width: 700px;
+            margin: auto;
+            text-align: center;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 4rem;
+        }
+        
+        .btn {
+            padding: 0.8rem 2rem;
+            outline: none;
+            border: 1px solid var(--primary-color);
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            background-color: var(--primary-color);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 20px var(--secondary-color);
+        }
+        
+        .btn.stop-listening {
+            background-color: #e53e3e;
+            border-color: #c53030;
+        }
+
+        .btn.stop-listening:hover {
+            background-color: #c53030;
+            box-shadow: 0 0 20px #c53030;
+        }
+
+
+        /*  Navigation  */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            background: rgba(17, 24, 39, 0.5);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .nav__logo a {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        
+        .nav__logo a span {
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav__links {
+            list-style: none;
+            display: flex;
+            gap: 2.5rem;
+        }
+
+        .nav__links a {
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav__links a:hover {
+            color: var(--text-primary);
+        }
+        
+        .nav__menu-btn {
+            display: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /*  Header  */
+        .header__container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding-top: 8rem;
+        }
+
+        .header__container h1 {
+            font-size: clamp(3rem, 7vw, 5rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(90deg, #A5B4FC, #6366F1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header__container p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            text-shadow: 0 1px 5px rgba(0, 0, 0, 0.7);
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+
+        /*  Transcription & Summary UI  */
+        #transcription-container {
+            width: 100%;
+            max-width: 1000px; /* Wider container for two panels */
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .output-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            width: 100%;
+            margin-bottom: 1.5rem;
+        }
+
+        .output-box {
+            background: var(--surface-color);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .output-box h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .output-content {
+            min-height: 200px;
+            text-align: left;
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+
+        .output-content .placeholder {
+            color: var(--text-secondary);
+        }
+        
+        #status-indicator {
+            margin-top: 1rem;
+            height: 20px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        
+        .status-listening {
+            color: var(--primary-color) !important;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        
+        /*  Services  */
+        .service__grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .service__card {
+            background: var(--surface-color);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 2.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .service__card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary-color);
+        }
+        
+        .service__card .service__icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+        }
+        
+        .service__card h4 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .service__card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        
+        /* Testimonials */
+        .testimonial__grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .testimonial__card {
+            background: var(--surface-color);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .testimonial__card p {
+            font-style: italic;
+            margin-bottom: 1.5rem;
+            color: var(--text-secondary);
+        }
+        
+        .testimonial__author {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .testimonial__author img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid var(--primary-color);
+        }
+        
+        .testimonial__author h4 {
+            font-weight: 600;
+        }
+
+        /* Footer */
+        .footer {
+            background: #111827;
+            border-top: 1px solid var(--glass-border);
+        }
+        
+        .footer__container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            padding: 4rem 2rem;
+        }
+        
+        .footer__col h4 {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+        }
+        
+        .footer__col p, .footer__col a {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .footer__col a:hover {
+            color: var(--text-primary);
+        }
+        
+        .footer__bar {
+            text-align: center;
+            padding: 1.5rem;
+            border-top: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 992px) {
+            .output-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .nav__links { display: none; }
+            .nav__menu-btn { display: block; }
+        }
+    </style>
+</head>
+<body>
+    <iframe id="bg-canvas" src='https://my.spline.design/claritystream-LQYyFj58MDxIU1GjsLn11k28/' frameborder='0' width='100%' height='100%'></iframe>
+
+    <div class="main-content">
+        <nav class="nav">
+            <div class="nav__logo">
+                <a href="#">Transcripto</a>
+            </div>
+            <ul class="nav__links">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#testimonials">Testimonials</a></li>
+            </ul>
+            <div class="nav__menu-btn">
+                <i class="ri-menu-line"></i>
+            </div>
+        </nav>
+
+        <header class="section__container header__container" id="home">
+            <h1>Your All-in-One AI Language Platform</h1>
+            <p>
+                Effortlessly transcribe audio and get instant summaries with our powerful, easy-to-use AI tools. Welcome to the future of communication.
+            </p>
+
+            <div id="transcription-container">
+                <div class="output-grid">
+                    <div class="output-box">
+                        <h3>Transcription</h3>
+                        <div id="transcription-output" class="output-content">
+                            <span class="placeholder">Your transcribed text will appear here...</span>
+                        </div>
+                    </div>
+                    <div class="output-box">
+                        <h3>Summary</h3>
+                        <div id="summary-output" class="output-content">
+                             <span class="placeholder">A summary of your transcript will appear here...</span>
+                        </div>
+                    </div>
+                </div>
+                 <div id="status-indicator">Click the button below to start recording.</div>
+            </div>
+
+            <button class="btn" id="transcribe-btn">Start Recording</button>
+        </header>
+
+        <section class="section__container" id="features">
+            <h2 class="section__header">Core Features</h2>
+            <p class="section__subheader">
+                We provide a new generation of language tools, powered by cutting-edge AI to deliver unparalleled speed, accuracy, and understanding.
+            </p>
+            <div class="service__grid">
+                <div class="service__card">
+                    <div class="service__icon"><i class="ri-mic-line"></i></div>
+                    <h4>Seamless Transcription</h4>
+                    <p>Convert spoken words into text with industry-leading accuracy for over 125 languages and dialects.</p>
+                </div>
+                <div class="service__card">
+                    <div class="service__icon"><i class="ri-file-text-line"></i></div>
+                    <h4>Automatic Summarization</h4>
+                    <p>Distill long transcripts into concise, easy-to-read summaries, saving you time and effort.</p>
+                </div>
+                 <div class="service__card">
+                    <div class="service__icon"><i class="ri-shield-check-line"></i></div>
+                    <h4>Secure & Private</h4>
+                    <p>Your data is processed securely and is never stored, ensuring complete privacy and confidentiality.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section__container" id="testimonials">
+            <h2 class="section__header">Success Stories</h2>
+            <div class="testimonial__grid">
+                <div class="testimonial__card">
+                    <p>"This transcription tool is a lifesaver for my international business communications. It's fast, accurate, and handles nuances surprisingly well."</p>
+                    <div class="testimonial__author">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1887&auto-format&fit=crop" alt="author" onerror="this.onerror=null;this.src='https://placehold.co/50x50/251351/ffffff?text=R';"/>
+                        <h4>Rajesh K.</h4>
+                    </div>
+                </div>
+                <div class="testimonial__card">
+                    <p>"As a journalist, getting accurate quotes quickly is crucial. The transcription tool caught every word perfectly, and the automatic summary is a game-changer."</p>
+                    <div class="testimonial__author">
+                        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1887&auto-format&fit=crop" alt="author" onerror="this.onerror=null;this.src='https://placehold.co/50x50/251351/ffffff?text=P';"/>
+                        <h4>Priya S.</h4>
+                    </div>
+                </div>
+                <div class="testimonial__card">
+                    <p>"The summarizer feature is incredible! It saved me hours of work by condensing a long research paper into a few key paragraphs."</p>
+                    <div class="testimonial__author">
+                        <img src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=1887&auto-format&fit=crop" alt="author" onerror="this.onerror=null;this.src='https://placehold.co/50x50/251351/ffffff?text=A';"/>
+                        <h4>Amit S.</h4>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="section__container footer__container">
+                <div class="footer__col">
+                    <h4>Transcripto</h4>
+                    <p>Pioneering the future of voice technology.</p>
+                </div>
+                <div class="footer__col">
+                    <h4>Company</h4>
+                    <a href="#">About</a>
+                    <a href="#">Careers</a>
+                    <a href="#">Press</a>
+                </div>
+                <div class="footer__col">
+                    <h4>Legal</h4>
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                </div>
+                <div class="footer__col">
+                    <h4>Contact</h4>
+                    <p>contact@transcripto.com</p>
+                </div>
+            </div>
+            <div class="footer__bar">
+                © 2025 Transcripto. All rights reserved.
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Scrolling Animations
+        const sr = ScrollReveal({
+            distance: '50px',
+            duration: 1500,
+            easing: 'cubic-bezier(0.5, 0, 0, 1)',
+        });
+        sr.reveal('.header__container h1', { delay: 200 });
+        sr.reveal('.header__container p', { delay: 400 });
+        sr.reveal('#transcription-container', { delay: 600 });
+        sr.reveal('.section__header', { delay: 200 });
+        sr.reveal('.section__subheader', { delay: 300 });
+        sr.reveal('.service__card', { interval: 200 });
+        sr.reveal('.testimonial__card', { interval: 200 });
+        sr.reveal('.text-tool__container', { delay: 400, interval: 100 });
+
+        //APIs Integration
+        const API_KEY = ''; // add google api key 
+
+        // URLs
+        const SPEECH_API_URL = `https://speech.googleapis.com/v1/speech:recognize?key=${API_KEY}`;
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+        
+        // Buttons and Outputs
+        const transcribeBtn = document.getElementById('transcribe-btn');
+        const transcriptionOutput = document.getElementById('transcription-output');
+        const summaryOutput = document.getElementById('summary-output');
+        const statusIndicator = document.getElementById('status-indicator');
+        
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        
+        // Core Functions
+        const generateSummary = async (text) => {
+            if (!text) return;
+            summaryOutput.innerHTML = `<span class="placeholder">Summarizing...</span>`;
+            try {
+                const payload = { contents: [{ parts: [{ text: `Summarize the following transcript concisely:\n\n${text}` }] }] };
+                const response = await fetch(GEMINI_API_URL, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                if (!response.ok) { throw new Error(await response.text()); }
+                const result = await response.json();
+                const summary = result.candidates[0].content.parts[0].text;
+                summaryOutput.textContent = summary;
+            } catch (error) {
+                console.error("AI Summarizer Error:", error);
+                summaryOutput.innerHTML = `<span class="placeholder">Could not generate summary.</span>`;
+            }
+        };
+
+        const sendToGoogleSpeechAPI = async (base64Audio) => {
+             try {
+                const request = {
+                    config: {
+                        encoding: 'WEBM_OPUS',
+                        sampleRateHertz: 48000,
+                        languageCode: 'en-US',
+                        enableAutomaticPunctuation: true,
+                    },
+                    audio: {
+                        content: base64Audio,
+                    },
+                };
+                
+                const response = await fetch(SPEECH_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(request),
+                });
+
+                if (!response.ok) {
+                   const error = await response.json();
+                   throw new Error(error.error.message || 'API request failed');
+                }
+
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    const transcript = data.results.map(result => result.alternatives[0].transcript).join('\n');
+                    transcriptionOutput.textContent = transcript;
+                    generateSummary(transcript); //  For generating summary in parallel
+                } else {
+                    transcriptionOutput.innerHTML = `<span class="placeholder">Could not transcribe audio. Please try speaking clearly.</span>`;
+                    summaryOutput.innerHTML = `<span class="placeholder">A summary of your transcript will appear here...</span>`;
+                }
+
+            } catch (error) {
+                console.error('Error with Google Speech API:', error);
+                statusIndicator.textContent = `Error: ${error.message}`;
+                transcriptionOutput.innerHTML = `<span class="placeholder">Transcription failed. Check console for details.</span>`;
+            } finally {
+                if(!isRecording) {
+                   statusIndicator.textContent = 'Click the button below to start recording.';
+                }
+            }
+        };
+        
+        const handleRecordingSuccess = (stream) => {
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                audioChunks = [];
+                statusIndicator.textContent = 'Processing...';
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    const base64Audio = reader.result.split(',')[1];
+                    sendToGoogleSpeechAPI(base64Audio);
+                };
+            };
+            mediaRecorder.start();
+        };
+
+        // Event Listeners
+        transcribeBtn.addEventListener('click', async () => {
+            if (API_KEY === 'YOUR_GOOGLE_CLOUD_API_KEY') {
+                statusIndicator.textContent = 'Error: Please add your Google Cloud API key in the script.';
+                return;
+            }
+
+            if (isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                transcribeBtn.textContent = 'Start Recording';
+                transcribeBtn.classList.remove('stop-listening');
+                statusIndicator.classList.remove('status-listening');
+            } else {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    handleRecordingSuccess(stream);
+                    isRecording = true;
+                    transcribeBtn.textContent = 'Stop & Process';
+                    transcribeBtn.classList.add('stop-listening');
+                    statusIndicator.textContent = 'Recording...';
+                    statusIndicator.classList.add('status-listening');
+                    transcriptionOutput.innerHTML = `<span class="placeholder">Your transcribed text will appear here...</span>`;
+                    summaryOutput.innerHTML = `<span class="placeholder">A summary of your transcript will appear here...</span>`;
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    statusIndicator.textContent = 'Error: Could not access microphone. Please grant permission.';
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>
+
