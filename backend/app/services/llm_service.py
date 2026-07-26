@@ -1,31 +1,25 @@
 import logging
 import json
+from abc import ABC, abstractmethod
+from typing import Dict, Any, Type
 from app.core.config import settings
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
-class LLMService:
-    def __init__(self):
-        self.provider = settings.SUMMARY_PROVIDER
-        self.client = None
-        if self.provider == "groq" and settings.GROQ_API_KEY:
-            try:
-                from groq import AsyncGroq
-                self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
-            except ImportError:
-                logger.error("groq not installed.")
-                self.provider = "mock"
+class LLMProvider(ABC):
+    """Strategy interface for LLM Providers."""
+    @abstractmethod
+    async def generate(self, prompt: str) -> str:
+        pass
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
-    async def _call_groq(self, prompt: str) -> str:
-        if not self.client:
-            raise Exception("Groq client not initialized")
-        
+class GroqProvider(LLMProvider):
+    def __init__(self):
+        from groq import AsyncGroq
+        if not settings.GROQ_API_KEY:
+            raise ValueError("GROQ_API_KEY is not set")
+        self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+
+    async def generate(self, prompt: str) -> str:
         response = await self.client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
@@ -34,77 +28,103 @@ class LLMService:
         )
         return response.choices[0].message.content.strip()
 
-    async def summarize(self, text: str, summary_type: str = "short") -> dict:
+class OpenAIProvider(LLMProvider):
+    def __init__(self):
+        from openai import AsyncOpenAI
+        if not settings.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY is not set")
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+    async def generate(self, prompt: str) -> str:
+        response = await self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=1500
+        )
+        return response.choices[0].message.content.strip()
+
+class MockProvider(LLMProvider):
+    async def generate(self, prompt: str) -> str:
+        logger.warning("Using MockProvider. This should not be used in production.")
+        return json.dumps({
+            "title": "Mock Summary",
+            "summary": "This is a mock summary because no valid provider was found.",
+            "key_points": ["Point 1", "Point 2"],
+            "action_items": ["Action 1"],
+            "keywords": ["mock", "test"]
+        })
+
+class LLMService:
+    def __init__(self):
+        self.provider_name = settings.SUMMARY_PROVIDER.lower()
+        self.provider: LLMProvider = self._initialize_provider()
+
+    def _initialize_provider(self) -> LLMProvider:
+        try:
+            if self.provider_name == "groq":
+                return GroqProvider()
+            elif self.provider_name == "openai":
+                return OpenAIProvider()
+            else:
+                logger.warning(f"Unsupported provider '{self.provider_name}', falling back to Mock.")
+                return MockProvider()
+        except Exception as e:
+            logger.error(f"Failed to initialize {self.provider_name} provider: {e}")
+            return MockProvider()
+
+    async def summarize(self, text: str, summary_type: str = "short") -> Dict[str, Any]:
         """
-        Summarizes text using the configured LLM provider.
-        Returns a dictionary suitable for SummaryResponse schema.
+        Summarizes text using the configured LLM provider strategy.
         """
         if not text or len(text.strip()) == 0:
             return {"summary": ""}
 
-        if self.provider == "groq" and self.client:
-            try:
-                if summary_type == "detailed":
-                    prompt_instruction = "Provide a detailed summary of the following transcript."
-                elif summary_type == "key_points":
-                    prompt_instruction = "Extract the key points from the following transcript, format as a concise paragraph or short bullet points."
-                elif summary_type == "meeting_notes":
-                    prompt_instruction = "Provide meeting notes from the following transcript."
-                elif summary_type == "action_items":
-                    prompt_instruction = "Extract the action items from the following transcript."
-                else:
-                    prompt_instruction = "Provide a short and concise summary of the following transcript."
+        instructions = {
+            "detailed": "Provide a detailed summary.",
+            "key_points": "Extract key points as concise bullet points.",
+            "meeting_notes": "Provide structured meeting notes.",
+            "action_items": "Extract actionable items.",
+            "short": "Provide a short, concise summary."
+        }
+        
+        prompt_instruction = instructions.get(summary_type, instructions["short"])
+        
+        prompt = (
+            f"You are a professional AI assistant. Analyze the transcript below.\n"
+            f"Output MUST be valid JSON with these keys exactly:\n"
+            f"- \"title\": A suitable title.\n"
+            f"- \"summary\": {prompt_instruction}\n"
+            f"- \"key_points\": A list of key points.\n"
+            f"- \"action_items\": A list of action items.\n"
+            f"- \"keywords\": A list of 5-10 keywords.\n\n"
+            f"Return ONLY raw JSON. No markdown ticks.\n\n"
+            f"Transcript:\n{text}"
+        )
 
-                prompt_json = (
-                    f"You are a professional AI assistant. Analyze the following transcript.\n"
-                    f"Output MUST be valid JSON with the following keys:\n"
-                    f"- \"title\": A suitable title for the text.\n"
-                    f"- \"summary\": {prompt_instruction}\n"
-                    f"- \"key_points\": A list of strings containing key points.\n"
-                    f"- \"action_items\": A list of strings containing action items.\n"
-                    f"- \"keywords\": A list of 5-10 strings containing keywords.\n\n"
-                    f"Do not include markdown blocks like ```json, just output the raw JSON.\n\n"
-                    f"Transcript:\n{text}"
-                )
-                
-                response_text = await self._call_groq(prompt_json)
-                
-                try:
-                    if response_text.startswith("```json"):
-                        response_text = response_text[7:-3]
-                    elif response_text.startswith("```"):
-                        response_text = response_text[3:-3]
-                    
-                    data = json.loads(response_text)
-                    return {
-                        "title": data.get("title"),
-                        "summary": data.get("summary", ""),
-                        "key_points": data.get("key_points", []),
-                        "action_items": data.get("action_items", []),
-                        "keywords": data.get("keywords", [])
-                    }
-                except json.JSONDecodeError:
-                    logger.error(f"Failed to parse JSON from Groq response. Raw: {response_text}")
-                    # Fallback if json fails
-                    summary = await self._call_groq(
-                        f"You are a professional assistant. {prompt_instruction}\n\nTranscript:\n{text}"
-                    )
-                    return {"summary": summary}
-
-            except Exception as e:
-                logger.error(f"Error during Groq summarization: {str(e)}")
-                # Fallback to heuristic on error
-                pass
-
-        # Heuristic fallback
-        logger.info("Using heuristic summarization fallback.")
-        sentences = text.replace('!', '.').replace('?', '.').split('.')
-        sentences = [s.strip() for s in sentences if s.strip()]
-        if len(sentences) >= 2:
-            summary = ". ".join(sentences[:2]) + "."
-        else:
-            summary = text[:200] + ("..." if len(text) > 200 else "")
+        try:
+            response_text = await self.provider.generate(prompt)
             
-        return {"summary": summary}
+            # Clean possible markdown
+            if response_text.startswith("```json"):
+                response_text = response_text[7:-3]
+            elif response_text.startswith("```"):
+                response_text = response_text[3:-3]
+                
+            data = json.loads(response_text)
+            return {
+                "title": data.get("title", "Untitled"),
+                "summary": data.get("summary", ""),
+                "key_points": data.get("key_points", []),
+                "action_items": data.get("action_items", []),
+                "keywords": data.get("keywords", [])
+            }
+        except Exception as e:
+            logger.error(f"Summarization error: {str(e)}")
+            # Heuristic fallback
+            sentences = text.replace('!', '.').replace('?', '.').split('.')
+            sentences = [s.strip() for s in sentences if s.strip()]
+            summary = ". ".join(sentences[:2]) + "." if len(sentences) >= 2 else text[:200]
+            return {"summary": summary, "fallback": True}
 
 llm_service = LLMService()
