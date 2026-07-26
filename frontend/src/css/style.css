@@ -1,0 +1,70 @@
+:root{
+  --primary:#6366F1; --secondary:#4F46E5; --bg:#0b1020; --surface:rgba(31,41,55,0.55);
+  --glass:rgba(255,255,255,0.08); --text:#fff; --muted:#9CA3AF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;
+  background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* layout */
+.main-content{position:relative;z-index:1;min-height:100vh}
+.section__container{max-width:1200px;margin:0 auto;padding:5.5rem 1.25rem}
+.nav{position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;background:rgba(7,10,18,0.55);backdrop-filter:blur(8px);border-bottom:1px solid var(--glass);z-index:999}
+.nav__logo a{font-weight:800;font-size:1.25rem;color:var(--text);text-decoration:none}
+.nav__links{display:flex;gap:1.5rem;list-style:none}
+.nav__links a{color:var(--muted);text-decoration:none;font-weight:500}
+.nav__links a:hover{color:var(--text)}
+
+.header__container{min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:5.5rem;text-align:center}
+h1{font-size:clamp(2.25rem,6vw,4rem);font-weight:800;background:linear-gradient(90deg,#A5B4FC,#6366F1);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:0.75rem}
+p.lead{max-width:720px;color:var(--muted);margin-bottom:1.25rem}
+
+/* transcription UI */
+#transcription-container{max-width:1000px;width:100%;margin-top:1rem}
+.output-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.output-box{background:var(--surface);border:1px solid var(--glass);border-radius:12px;padding:1.25rem;backdrop-filter:blur(6px)}
+.output-box h3{color:var(--primary);font-size:1.05rem;margin-bottom:0.5rem}
+.output-content{min-height:180px;font-size:1rem;line-height:1.6;color:var(--text);overflow:auto;padding-right:0.25rem}
+.placeholder{color:var(--muted)}
+
+/* controls */
+.controls{display:flex;gap:0.75rem;align-items:center;justify-content:center;margin-top:1rem;flex-wrap:wrap}
+.btn{appearance:none;border:1px solid var(--primary);background:var(--primary);color:var(--text);padding:0.6rem 1rem;border-radius:8px;font-weight:700;cursor:pointer;transition:all .18s ease}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.alt{background:transparent;border:1px solid var(--glass);color:var(--muted)}
+.btn.danger{background:#e53e3e;border-color:#c53030}
+
+#status-indicator{margin-top:.6rem;color:var(--muted);font-style:italic;min-height:20px; text-align:center}
+#spinner{display:inline-block;margin-left:.6rem}
+.status-listening{color:var(--primary);animation:pulse 1.4s infinite}
+
+@keyframes pulse{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
+
+/* small utilities */
+.visually-hidden{position:absolute!important;height:1px;width:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}
+.meta-row{display:flex;gap:0.6rem;align-items:center;justify-content:center;margin-top:.6rem}
+.download-link{color:var(--muted);text-decoration:underline;cursor:pointer}
+
+/* responsive */
+@media (max-width:992px){.output-grid{grid-template-columns:1fr}}
+@media (max-width:720px){.nav__links{display:none}}
+
+/* accessibility preference */
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+
+/* lazy iframe style */
+#bg-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:-1;border:0;opacity:.75}
+
+/* sign language section */
+.sign-section{max-width:1000px;width:100%;margin-top:2rem;background:var(--surface);border:1px solid var(--glass);border-radius:12px;padding:1.25rem;backdrop-filter:blur(6px)}
+.sign-section h3{color:var(--primary);font-size:1.05rem;margin-bottom:0.75rem}
+.sign-video-container{position:relative;width:100%;max-width:640px;margin:0 auto;background:#000;border-radius:8px;overflow:hidden}
+#sign-video{width:100%;display:block}
+#sign-canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+#sign-detected-text{min-height:60px;background:var(--bg);border:1px solid var(--glass);border-radius:8px;padding:0.75rem;margin-top:0.75rem;color:var(--text);font-size:0.95rem}

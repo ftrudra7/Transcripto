@@ -1,0 +1,28 @@
+# Environment variables
+.env
+.env.*
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Pytest
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+
+# VS Code (optional)
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
